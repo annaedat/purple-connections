@@ -1,19 +1,27 @@
 import { useState } from 'react';
 import './App.css';
-import { Text, Title } from '@mantine/core';
+import { Button, Paper, SimpleGrid, Text, Title } from '@mantine/core';
 import { GridOfWords } from './GridOfWords';
 import { GameButtons } from './GameButtons';
 import { MistakesRemaining } from './MistakesRemaining';
 import { connectWords } from './data';
 
-function shuffleArray(array: any[]): any[] {
+// randomizes order of elements in array
+function shuffleArray(array: string[]): string[] {
   return array.sort(() => Math.random() - 0.5);
+}
+
+// Creates a single array that contains all the words from all DataItem objects in the data array.
+const wordDataToArray = () => {
+  return connectWords[0].flatMap(item => item.words)
 }
 
 function App() {
   // track the selected buttons
   const [selectedButtons, setSelectedButtons] = useState<string[]>([])
-  const [shuffledData, setShuffledData] = useState(connectWords[0])
+  const [shuffledWords, setShuffledWords] = useState<string[]>(shuffleArray(wordDataToArray()))
+  //const [guessCandidates, setGuessCandidates] = useState<>
+  const [paperRows, setPaperRows] = useState<number>(0);
   // max number of selectable buttons.
   const maxSelections = 4
 
@@ -39,38 +47,61 @@ function App() {
     setSelectedButtons([])
   }
 
+  // Create shallow copy of the shuffledWords array, shuffles it and updates shuffledWords state with the shuffled array using setShuffledWords.
   const handleShuffle = () => {
-    const flattenedWords = connectWords[0].flatMap(item => item.words);
-    const shuffledWords = shuffleArray(flattenedWords);
-    const newShuffledData = connectWords[0].map(item => ({
-      ...item,
-      words: shuffledWords.splice(0, item.words.length)
-    }));
-    setShuffledData(newShuffledData);
+    setShuffledWords(shuffleArray([...shuffledWords]))
+  }
+
+  const handleSubmit = () => {
+    const selectedCategories = new Set<string>()
+    // Checks if the selected buttons belong to the same category.
+    selectedButtons.forEach((word) => {
+      const tempcategory = connectWords[0].find((item) => item.words.includes(word))?.category
+      if (tempcategory) {
+        selectedCategories.add(tempcategory)
+      }
+    });
+
+    if (selectedCategories.size === 1) {
+      if (paperRows < 4) {
+        // Move other buttons to remaining rows
+        const remainingWords = shuffledWords.filter((word) => !selectedButtons.includes(word))
+        // Update shuffledWords state
+        setShuffledWords([...selectedButtons, ...remainingWords])
+        setSelectedButtons([]) // Clear selected buttons
+        setPaperRows(paperRows + 1);
+      } else {
+        console.log("All rows are transformed to papers.");
+      }
+    } else {
+      // Handle error or display message indicating buttons are not from the same category
+      console.log("Buttons are not from the same category.")
+    }
   }
 
   return (
     <div 
       style={{
-        maxWidth: "800px",
-        display: "flex",
-        flexDirection: "column",
-        gap: "2rem",
-        margin: "0 auto", 
-        alignItems: "center"
-      }} >
+        maxWidth: "800px", display: "flex", flexDirection: "column",
+        gap: "2rem", margin: "0 auto", alignItems: "center",
+      }} 
+      >
       <Title size="h1" >Connections</Title>
       <Text size='lg' >Create four groups of four</Text>
-      <GridOfWords data={shuffledData}
+      <GridOfWords data={connectWords[0]}
+        shuffledWords={shuffledWords}
         selectedButtons={selectedButtons}
         handleButtonClick={handleButtonClick}
         isButtonDisabled={isButtonDisabled}
+        paperRows={paperRows}
       />
       <MistakesRemaining />
       <GameButtons 
         selectedButtons={selectedButtons}
         handleDeselectAll={handleDeselectAll}
         handleShuffle={handleShuffle}
+        handleSubmit={handleSubmit}
+        paperRows={paperRows}
       />
     </div>
   )
